@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35222.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Azure2Md", "Azure2Md\Azure2Md.csproj", "{2FBABF0F-A887-4333-9F99-FC1EA5E0BB4E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2FBABF0F-A887-4333-9F99-FC1EA5E0BB4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FBABF0F-A887-4333-9F99-FC1EA5E0BB4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FBABF0F-A887-4333-9F99-FC1EA5E0BB4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FBABF0F-A887-4333-9F99-FC1EA5E0BB4E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {21203444-F120-4790-907D-AB86665F8AAF}
+	EndGlobalSection
+EndGlobal
