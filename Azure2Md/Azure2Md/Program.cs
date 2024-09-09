@@ -62,6 +62,7 @@ public class Program
 
             // 创建Mermaid甘特图内容
             StringBuilder ganttChartContent = new StringBuilder();
+            ganttChartContent.AppendLine("```mermaid");
             ganttChartContent.AppendLine("gantt");
             ganttChartContent.AppendLine("    title 项目甘特图");
             ganttChartContent.AppendLine("    dateFormat  YYYY-MM-DD");
@@ -75,6 +76,7 @@ public class Program
                 ganttChartContent.AppendLine($"    Task {taskId} :{taskTitle}, {startDate}, {endDate}");
             }
 
+            ganttChartContent.AppendLine("```");
             // 写入文件
             File.WriteAllText(outputFile, ganttChartContent.ToString());
             Console.WriteLine($"Mermaid甘特图已写入到文件：{outputFile}");
