@@ -1,5 +1,7 @@
 # Azure2Md
 
+[English](README.en.md) | 简体中文
+
 一个将 Azure DevOps 工作项导出为 Markdown 报告的工具。
 
 ## 功能特点
@@ -14,6 +16,7 @@
 - 支持自定义查询或使用现有查询
 - 显示工作项的完整时间信息
 - 支持任务状态的可视化（进行中/已完成）
+- 支持多语言（中文/英文/自动检测）
 
 ## 配置说明
 
@@ -25,7 +28,8 @@
     "PersonalAccessToken": "你的PAT令牌",
     "ReportSettings": {
         "MergeProjects": true,
-        "MergedTitle": "多项目整合报告"
+        "MergedTitle": "多项目整合报告",
+        "Language": "auto"  // 可选值：auto, zh-CN, en-US
     },
     "Projects": [
         {
@@ -47,6 +51,10 @@
 - `ReportSettings`: 报告生成设置
   - `MergeProjects`: 是否合并多个项目的报告
   - `MergedTitle`: 合并报告的标题
+  - `Language`: 语言设置
+    - `auto`: 自动检测系统语言
+    - `zh-CN`: 强制使用中文
+    - `en-US`: 强制使用英文
 - `Projects`: 项目配置列表
   - `ProjectName`: 项目名称
   - `Query`: 查询配置
@@ -71,13 +79,13 @@
    - User Story 层级视图
 
 4. 工作项分类
-   - Features 列表
-   - User Stories 列表
-   - Tasks 列表
+   - Features 列表（包含开始日期和结束日期）
+   - User Stories 列表（包含开始日期、结束日期和所属 Feature）
+   - Tasks 列表（包含开始日期、结束日期和所属 Story）
 
 5. 团队成员任务分配
    - 每个成员的甘特图
-   - 个人工作项列表
+   - 个人工作项列表（包含开始日期和结束日期）
 
 ### 独立报告模式
 
@@ -98,7 +106,7 @@
 
 4. 团队成员任务分配
    - 个人甘特图
-   - 个人工作项列表
+   - 个人工作项列表（包含开始日期和结束日期）
 
 ## 状态映射
 
@@ -121,6 +129,7 @@
 - 支持的工作项类型：Feature、User Story 和 Task
 - 时间显示采用本地时区
 - 合并报告模式下会将所有项目的工作项整合到一个报告中
+- 语言设置为 auto 时会自动检测系统语言
 
 
 
