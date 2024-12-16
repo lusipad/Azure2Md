@@ -1,23 +1,20 @@
 # Azure2Md
-从 Azure 中获取数据，生成 Markdown 文件报告
 
-## 功能介绍
+一个将 Azure DevOps 工作项导出为 Markdown 报告的工具。
 
-Azure2Md 是一个用于从 Azure DevOps 中获取工作项数据并生成 Markdown 格式报告的工具。
+## 功能特点
 
-主要功能包括：
-
-- 通过 Azure DevOps REST API 获取工作项数据
-- 支持使用现有查询或自定义 WIQL 查询
-- 生成包含以下内容的 Markdown 报告：
-  - 项目整体甘特图
-  - 工作项总体列表 (包含 ID、标题、状态、负责人)
-  - 按人员分组的任务视图 (每人的甘特图和工作项列表)
+- 支持多个项目的工作项导出
+- 生成包含甘特图的 Markdown 报告
+- 支持 User Story 和 Task 的层级关系
+- 按人员分组显示任务
+- 支持自定义查询或使用现有查询
+- 显示工作项的完整时间信息
+- 支持任务状态的可视化（进行中/已完成）
 
 ## 配置说明
 
-# Start of Selection
-在 `appsettings.json` 中，您需要配置以下内容：
+在 `appsettings.json` 中配置：
 ``` json
 {
   "TfsUrl": "您的 TFS URL",
