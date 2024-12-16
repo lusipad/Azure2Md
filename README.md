@@ -17,6 +17,7 @@
 - 显示工作项的完整时间信息
 - 支持任务状态的可视化（进行中/已完成）
 - 支持多语言（中文/英文/自动检测）
+- 支持自定义甘特图显示选项
 
 ## 配置说明
 
@@ -25,11 +26,16 @@
 ```json
 {
     "TfsUrl": "https://dev.azure.com/你的组织名",
-    "PersonalAccessToken": "你的 PAT 令牌",
+    "PersonalAccessToken": "你的PAT令牌",
     "ReportSettings": {
         "MergeProjects": true,
         "MergedTitle": "多项目整合报告",
-        "Language": "auto"  // 可选值：auto, zh-CN, en-US
+        "Language": "auto",  // 可选值：auto, zh-CN, en-US
+        "DisplayOptions": {
+            "ShowFeatureInGantt": true,  // 是否在甘特图中显示 Feature
+            "ShowUserStoryInGantt": true,  // 是否在甘特图中显示 User Story
+            "PrefixParentName": true  // 是否在子项前显示父项名称
+        }
     },
     "Projects": [
         {
@@ -55,12 +61,34 @@
     - `auto`: 自动检测系统语言
     - `zh-CN`: 强制使用中文
     - `en-US`: 强制使用英文
+  - `DisplayOptions`: 显示选项
+    - `ShowFeatureInGantt`: 是否在甘特图中显示 Feature 节点
+    - `ShowUserStoryInGantt`: 是否在甘特图中显示 User Story 节点
+    - `PrefixParentName`: 是否在子项前添加父项名称
 - `Projects`: 项目配置列表
   - `ProjectName`: 项目名称
   - `Query`: 查询配置
     - `UseExistingQuery`: 是否使用现有查询
     - `QueryPath`: 现有查询的路径
     - `CustomWiql`: 自定义 WIQL 查询（可选）
+
+## 甘特图显示说明
+
+1. 父子项显示
+   - 当 `ShowFeatureInGantt` 为 true 时，显示 Feature 节点
+   - 当 `ShowUserStoryInGantt` 为 true 时，显示 User Story 节点
+   - 子项始终显示
+
+2. 名称显示
+   - 当 `PrefixParentName` 为 true 时：
+     - User Story 显示为：`Feature名称 - User Story名称`
+     - Task 显示为：`User Story名称 - Task名称`
+   - 当 `PrefixParentName` 为 false 时，仅显示项目自身名称
+
+3. 节点类型标识
+   - Feature 节点显示为：`名称 (Feature)`
+   - User Story 节点显示为：`名称 (Story)`
+   - Task 节点不添加类型标识
 
 ## 生成的报告内容
 

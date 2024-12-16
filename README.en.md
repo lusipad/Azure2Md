@@ -17,6 +17,7 @@ A tool to export Azure DevOps work items to Markdown reports.
 - Display complete time information for work items
 - Support task status visualization (active/done)
 - Support multiple languages (Chinese/English/Auto-detect)
+- Support customizable Gantt chart display options
 
 ## Configuration
 
@@ -29,7 +30,12 @@ Configure in `appsettings.json`:
     "ReportSettings": {
         "MergeProjects": true,
         "MergedTitle": "Multi-Project Report",
-        "Language": "auto"  // Options: auto, zh-CN, en-US
+        "Language": "auto",  // Options: auto, zh-CN, en-US
+        "DisplayOptions": {
+            "ShowFeatureInGantt": true,  // Show Feature nodes in Gantt chart
+            "ShowUserStoryInGantt": true,  // Show User Story nodes in Gantt chart
+            "PrefixParentName": true  // Add parent name prefix to child items
+        }
     },
     "Projects": [
         {
@@ -55,12 +61,34 @@ Configure in `appsettings.json`:
     - `auto`: Auto-detect system language
     - `zh-CN`: Force Chinese
     - `en-US`: Force English
+  - `DisplayOptions`: Display options
+    - `ShowFeatureInGantt`: Whether to show Feature nodes in Gantt chart
+    - `ShowUserStoryInGantt`: Whether to show User Story nodes in Gantt chart
+    - `PrefixParentName`: Whether to add parent name prefix to child items
 - `Projects`: Project configuration list
   - `ProjectName`: Project name
   - `Query`: Query configuration
     - `UseExistingQuery`: Whether to use existing query
     - `QueryPath`: Existing query path
     - `CustomWiql`: Custom WIQL query (optional)
+
+## Gantt Chart Display Guide
+
+1. Parent-Child Display
+   - When `ShowFeatureInGantt` is true, Feature nodes are shown
+   - When `ShowUserStoryInGantt` is true, User Story nodes are shown
+   - Child items are always displayed
+
+2. Name Display
+   - When `PrefixParentName` is true:
+     - User Story shows as: `Feature Name - User Story Name`
+     - Task shows as: `User Story Name - Task Name`
+   - When `PrefixParentName` is false, only shows item's own name
+
+3. Node Type Indicators
+   - Feature nodes show as: `Name (Feature)`
+   - User Story nodes show as: `Name (Story)`
+   - Task nodes have no type indicator
 
 ## Generated Report Content
 

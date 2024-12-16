@@ -34,7 +34,15 @@ public class ReportSettings
 {
     public bool MergeProjects { get; set; }
     public string MergedTitle { get; set; }
-    public string Language { get; set; } = "auto"; // 默认自动检测
+    public string Language { get; set; } = "auto";
+    public DisplayOptions DisplayOptions { get; set; } = new DisplayOptions();
+}
+
+public class DisplayOptions
+{
+    public bool ShowFeatureInGantt { get; set; } = true;
+    public bool ShowUserStoryInGantt { get; set; } = true;
+    public bool PrefixParentName { get; set; } = true;
 }
 
 // 修改类的访问修饰符，移除 private
@@ -64,7 +72,7 @@ public static class LanguageResources
             ["ID"] = "ID",
             ["Title"] = "标题",
             ["Status"] = "状态",
-            ["Assignee"] = "负责人",
+            ["Assignee"] = "负责",
             ["StartDate"] = "开始日期",
             ["EndDate"] = "结束日期",
             ["ParentStory"] = "所属 Story",
@@ -327,7 +335,7 @@ public class Program
         sb.AppendLine("#### User Story 层级视图");
         GenerateUserStoryGanttChart(sb, $"{projectName} User Story 进度", workItems);
 
-        // 3. 按工作项类型分组（使用三级标题）
+        // 3. 按工作项类型���组（使用三级标题）
         sb.AppendLine("### 工作项分类");
         
         // 3.1 User Stories（使用四级标题）
@@ -669,17 +677,20 @@ public class Program
             sb.AppendLine($"    section {featureTitle}");
 
             // 显示 Feature 本身
-            var featureStartDate = FormatDate(
-                feature.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
-                    ? feature.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
-                    : null);
-            var featureEndDate = FormatDate(
-                feature.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
-                    ? feature.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
-                    : DateTime.Now.AddDays(30));
-            var featureStatus = GetTaskStatus(feature.Fields["System.State"].ToString());
-            
-            sb.AppendLine($"    {featureTitle} :{featureStatus}, {featureStartDate}, {featureEndDate}");
+            if (settings.ReportSettings?.DisplayOptions?.ShowFeatureInGantt ?? true)
+            {
+                var featureStartDate = FormatDate(
+                    feature.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? feature.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var featureEndDate = FormatDate(
+                    feature.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? feature.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(30));
+                var featureStatus = GetTaskStatus(feature.Fields["System.State"].ToString());
+                
+                sb.AppendLine($"    {featureTitle} (Feature) :{featureStatus}, {featureStartDate}, {featureEndDate}");
+            }
 
             // 显示属于该 Feature 的 User Stories
             var featureStories = userStories.Where(s => 
@@ -689,6 +700,11 @@ public class Program
             foreach (var story in featureStories)
             {
                 var storyTitle = story.Fields["System.Title"].ToString();
+                if (settings.ReportSettings?.DisplayOptions?.PrefixParentName ?? true)
+                {
+                    storyTitle = $"{featureTitle} - {storyTitle}";
+                }
+
                 var storyStartDate = FormatDate(
                     story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
                         ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
@@ -749,17 +765,20 @@ public class Program
             sb.AppendLine($"    section {storyTitle}");
 
             // 显示 User Story 本身
-            var storyStartDate = FormatDate(
-                story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
-                    ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
-                    : null);
-            var storyEndDate = FormatDate(
-                story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
-                    ? story.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
-                    : DateTime.Now.AddDays(14));
-            var storyStatus = GetTaskStatus(story.Fields["System.State"].ToString());
-            
-            sb.AppendLine($"    {storyTitle} :{storyStatus}, {storyStartDate}, {storyEndDate}");
+            if (settings.ReportSettings?.DisplayOptions?.ShowUserStoryInGantt ?? true)
+            {
+                var storyStartDate = FormatDate(
+                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var storyEndDate = FormatDate(
+                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? story.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(14));
+                var storyStatus = GetTaskStatus(story.Fields["System.State"].ToString());
+                
+                sb.AppendLine($"    {storyTitle} (Story) :{storyStatus}, {storyStartDate}, {storyEndDate}");
+            }
 
             // 显示属于该 User Story 的 Tasks
             var storyTasks = tasks.Where(t => 
@@ -769,6 +788,11 @@ public class Program
             foreach (var task in storyTasks)
             {
                 var taskTitle = task.Fields["System.Title"].ToString();
+                if (settings.ReportSettings?.DisplayOptions?.PrefixParentName ?? true)
+                {
+                    taskTitle = $"{storyTitle} - {taskTitle}";
+                }
+
                 var startDate = FormatDate(
                     task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
                         ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
