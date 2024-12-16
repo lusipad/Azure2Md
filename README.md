@@ -25,7 +25,7 @@
 ```json
 {
     "TfsUrl": "https://dev.azure.com/你的组织名",
-    "PersonalAccessToken": "你的PAT令牌",
+    "PersonalAccessToken": "你的 PAT 令牌",
     "ReportSettings": {
         "MergeProjects": true,
         "MergedTitle": "多项目整合报告",
@@ -131,5 +131,5 @@
 - 合并报告模式下会将所有项目的工作项整合到一个报告中
 - 语言设置为 auto 时会自动检测系统语言
 
-
-
+## 示例报告
+![work_items_test](media/work_items_test.png)

@@ -34,10 +34,117 @@ public class ReportSettings
 {
     public bool MergeProjects { get; set; }
     public string MergedTitle { get; set; }
+    public string Language { get; set; } = "auto"; // 默认自动检测
+}
+
+// 修改类的访问修饰符，移除 private
+public static class LanguageResources
+{
+    private static readonly Dictionary<string, Dictionary<string, string>> Resources = new()
+    {
+        ["zh-CN"] = new()
+        {
+            ["Title"] = "工作项报告",
+            ["GeneratedTime"] = "生成时间",
+            ["Overview"] = "总体概览",
+            ["TotalItems"] = "工作项总数",
+            ["CompletedItems"] = "完成项数量",
+            ["ActiveItems"] = "进行中数量",
+            ["ProjectStats"] = "项目统计",
+            ["Gantt"] = "甘特图",
+            ["FeatureView"] = "Feature 层级视图",
+            ["UserStoryView"] = "User Story 层级视图",
+            ["WorkItems"] = "工作项分类",
+            ["TeamMembers"] = "团队成员任务分配",
+            ["PersonalGantt"] = "个人甘特图",
+            ["WorkItemList"] = "工作项列表",
+            ["Unassigned"] = "未分配",
+            ["OtherTasks"] = "其他任务",
+            ["ViewInAzure"] = "在 Azure DevOps 中查看项目",
+            ["ID"] = "ID",
+            ["Title"] = "标题",
+            ["Status"] = "状态",
+            ["Assignee"] = "负责人",
+            ["StartDate"] = "开始日期",
+            ["EndDate"] = "结束日期",
+            ["ParentStory"] = "所属 Story",
+            ["Type"] = "类型"
+        },
+        ["en-US"] = new()
+        {
+            ["Title"] = "Work Items Report",
+            ["GeneratedTime"] = "Generated Time",
+            ["Overview"] = "Overview",
+            ["TotalItems"] = "Total Items",
+            ["CompletedItems"] = "Completed Items",
+            ["ActiveItems"] = "Active Items",
+            ["ProjectStats"] = "Project Statistics",
+            ["Gantt"] = "Gantt Chart",
+            ["FeatureView"] = "Feature Level View",
+            ["UserStoryView"] = "User Story Level View",
+            ["WorkItems"] = "Work Items",
+            ["TeamMembers"] = "Team Member Assignments",
+            ["PersonalGantt"] = "Personal Gantt",
+            ["WorkItemList"] = "Work Item List",
+            ["Unassigned"] = "Unassigned",
+            ["OtherTasks"] = "Other Tasks",
+            ["ViewInAzure"] = "View in Azure DevOps",
+            ["ID"] = "ID",
+            ["Title"] = "Title",
+            ["Status"] = "Status",
+            ["Assignee"] = "Assignee",
+            ["StartDate"] = "Start Date",
+            ["EndDate"] = "End Date",
+            ["ParentStory"] = "Parent Story",
+            ["Type"] = "Type"
+        }
+    };
+
+    public static string GetText(string language, string key)
+    {
+        if (!Resources.ContainsKey(language))
+            language = "en-US"; // 默认英文
+
+        return Resources[language].GetValueOrDefault(key, key);
+    }
+}
+
+// 修改类的访问修饰符，移除 private
+public static class LanguageHelper
+{
+    public static string GetCurrentLanguage(string configLanguage)
+    {
+        // 如果配置不是 auto，直接使用配置的语言
+        if (!string.Equals(configLanguage, "auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return configLanguage;
+        }
+
+        try
+        {
+            // 获取系统当前 UI 文化
+            var currentUICulture = System.Threading.Thread.CurrentThread.CurrentUICulture;
+            
+            // 根据系统语言选择支持的语言
+            return currentUICulture.Name.ToLower() switch
+            {
+                var x when x.StartsWith("zh") => "zh-CN",
+                var x when x.StartsWith("en") => "en-US",
+                _ => "en-US"  // 默认使用英语
+            };
+        }
+        catch
+        {
+            return "en-US";  // 出错时默认使用英语
+        }
+    }
 }
 
 public class Program
 {
+    // 添加静态字段
+    private static AppSettings settings;
+
     public static void Main()
     {
         try
@@ -45,7 +152,7 @@ public class Program
             // 读取配置文件
             string configPath = "appsettings.json";
             var config = File.ReadAllText(configPath);
-            var settings = JsonConvert.DeserializeObject<AppSettings>(config);
+            settings = JsonConvert.DeserializeObject<AppSettings>(config);  // 赋值给静态字段
 
             // 创建连接
             VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), 
@@ -86,8 +193,26 @@ public class Program
             }
             else
             {
-                // 原有的分项目生成逻辑
-                // ... 保持不变 ...
+                // 分别处理每个项目
+                foreach (var project in settings.Projects)
+                {
+                    Console.WriteLine($"正在处理项目：{project.ProjectName}");
+                    
+                    // 创建项目报告的 StringBuilder
+                    var projectReport = new StringBuilder();
+                    projectReport.AppendLine($"# {project.ProjectName} 工作项报告");
+                    projectReport.AppendLine();
+                    projectReport.AppendLine($"生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    projectReport.AppendLine();
+
+                    // 处理项目
+                    ProcessProject(witClient, project, settings.TfsUrl, projectReport);
+
+                    // 保存项目报告
+                    string outputFile = $"work_items_{project.ProjectName}.md";
+                    File.WriteAllText(outputFile, projectReport.ToString());
+                    Console.WriteLine($"项目 {project.ProjectName} 的报告已生成：{outputFile}");
+                }
             }
         }
         catch (Exception ex)
@@ -153,20 +278,24 @@ public class Program
 
     private static void GenerateReport(IEnumerable<WorkItem> workItems, string projectName, string tfsUrl, StringBuilder sb)
     {
+        // 获取当前应该使用的语言
+        var currentLanguage = LanguageHelper.GetCurrentLanguage(settings.ReportSettings?.Language ?? "auto");
+        var t = (string key) => LanguageResources.GetText(currentLanguage, key);
+
         // 项目标题使用二级标题
         sb.AppendLine($"## {projectName}");
         sb.AppendLine();
         
-        // 添加��目链接
-        sb.AppendLine($"[在 Azure DevOps 中查看项目]({tfsUrl}/{projectName})");
+        // 添加项目链接
+        sb.AppendLine($"[{t("ViewInAzure")}]({tfsUrl}/{projectName})");
         sb.AppendLine();
 
-        // 1. 项目概览（使用三级标题）
-        sb.AppendLine("### 项目概览");
+        // 1. 项目概览
+        sb.AppendLine($"### {t("Overview")}");
         sb.AppendLine();
-        sb.AppendLine($"- 工作项总数：{workItems.Count()}");
-        sb.AppendLine($"- 完成项数量：{workItems.Count(w => GetTaskStatus(w.Fields["System.State"].ToString()) == "done")}");
-        sb.AppendLine($"- 进行中数量：{workItems.Count(w => GetTaskStatus(w.Fields["System.State"].ToString()) == "active")}");
+        sb.AppendLine($"- {t("TotalItems")}：{workItems.Count()}");
+        sb.AppendLine($"- {t("CompletedItems")}：{workItems.Count(w => GetTaskStatus(w.Fields["System.State"].ToString()) == "done")}");
+        sb.AppendLine($"- {t("ActiveItems")}：{workItems.Count(w => GetTaskStatus(w.Fields["System.State"].ToString()) == "active")}");
         sb.AppendLine();
 
         // 2. 甘特图部分（使用三级标题）
@@ -276,7 +405,7 @@ public class Program
             else
             {
                 // 否则使用 User Story 层级视图
-                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度甘特图", personGroup);
+                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度特图", personGroup);
             }
             
             // 个人工作项列表（使用五级标题）
@@ -682,6 +811,10 @@ public class Program
 
     private static void GenerateMergedReport(List<(WorkItem Item, string ProjectName)> allWorkItems, string tfsUrl, StringBuilder sb)
     {
+        // 获取当前应该使用的语言
+        var currentLanguage = LanguageHelper.GetCurrentLanguage(settings.ReportSettings?.Language ?? "auto");
+        var t = (string key) => LanguageResources.GetText(currentLanguage, key);
+
         // 1. 总体概览
         sb.AppendLine("## 总体概览");
         sb.AppendLine();
@@ -725,13 +858,94 @@ public class Program
             sb.AppendLine("|---|---|---|---|---|---|---|");
             foreach (var (item, projectName) in features)
             {
-                // ... 生成 Feature 表格行 ...
+                var id = item.Id;
+                var title = item.Fields["System.Title"].ToString();
+                var state = item.Fields["System.State"].ToString();
+                var assignedTo = GetPersonName(
+                    item.Fields.ContainsKey("System.AssignedTo") 
+                        ? item.Fields["System.AssignedTo"] 
+                        : null);
+                var startDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var endDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(30));
+
+                sb.AppendLine($"| {projectName} | {id} | {title} | {state} | {assignedTo} | {startDate} | {endDate} |");
             }
             sb.AppendLine();
         }
 
-        // 4.2 User Stories（类似处理）
-        // 4.3 Tasks（类似处理）
+        // 4.2 User Stories
+        var userStories = allWorkItems.Where(w => 
+            w.Item.Fields["System.WorkItemType"].ToString() == "User Story");
+        if (userStories.Any())
+        {
+            sb.AppendLine("### User Stories");
+            sb.AppendLine("| 项目 | ID | 标题 | 状态 | 负责人 | 开始日期 | 结束日期 | 所属 Feature |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            foreach (var (item, projectName) in userStories)
+            {
+                var id = item.Id;
+                var title = item.Fields["System.Title"].ToString();
+                var state = item.Fields["System.State"].ToString();
+                var assignedTo = GetPersonName(
+                    item.Fields.ContainsKey("System.AssignedTo") 
+                        ? item.Fields["System.AssignedTo"] 
+                        : null);
+                var startDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var endDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(14));
+                var parentId = item.Fields.ContainsKey("System.Parent") 
+                    ? item.Fields["System.Parent"].ToString() 
+                    : "-";
+
+                sb.AppendLine($"| {projectName} | {id} | {title} | {state} | {assignedTo} | {startDate} | {endDate} | {parentId} |");
+            }
+            sb.AppendLine();
+        }
+
+        // 4.3 Tasks
+        var tasks = allWorkItems.Where(w => 
+            w.Item.Fields["System.WorkItemType"].ToString() == "Task");
+        if (tasks.Any())
+        {
+            sb.AppendLine("### Tasks");
+            sb.AppendLine("| 项目 | ID | 标题 | 状态 | 负责人 | 开始日期 | 结束日期 | 所属 Story |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|");
+            foreach (var (item, projectName) in tasks)
+            {
+                var id = item.Id;
+                var title = item.Fields["System.Title"].ToString();
+                var state = item.Fields["System.State"].ToString();
+                var assignedTo = GetPersonName(
+                    item.Fields.ContainsKey("System.AssignedTo") 
+                        ? item.Fields["System.AssignedTo"] 
+                        : null);
+                var startDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var endDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(7));
+                var parentId = item.Fields.ContainsKey("System.Parent") 
+                    ? item.Fields["System.Parent"].ToString() 
+                    : "-";
+
+                sb.AppendLine($"| {projectName} | {id} | {title} | {state} | {assignedTo} | {startDate} | {endDate} | {parentId} |");
+            }
+            sb.AppendLine();
+        }
 
         // 5. 按人员分组的视图
         sb.AppendLine("## 团队成员任务分配");
@@ -743,7 +957,47 @@ public class Program
 
         foreach (var personGroup in workItemsByPerson)
         {
-            // ... 生成个人任务视图 ...
+            sb.AppendLine($"### {personGroup.Key}");
+            sb.AppendLine();
+
+            // 个人甘特图
+            sb.AppendLine("#### 个人甘特图");
+            var personItems = personGroup.Select(w => w.Item);
+            var hasFeatures = personItems.Any(i => i.Fields["System.WorkItemType"].ToString() == "Feature");
+            if (hasFeatures)
+            {
+                GenerateFeatureGanttChart(sb, $"{personGroup.Key}的进度甘特图", personItems);
+            }
+            else
+            {
+                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度甘特图", personItems);
+            }
+
+            // 个人工作项列表
+            sb.AppendLine("#### 工作项列表");
+            sb.AppendLine();
+            sb.AppendLine("| 项目 | ID | 类型 | 标题 | 状态 | 开始日期 | 结束日期 |");
+            sb.AppendLine("|---|---|---|---|---|---|---|");
+
+            foreach (var (item, projectName) in personGroup)
+            {
+                var id = item.Id;
+                var type = item.Fields["System.WorkItemType"].ToString();
+                var title = item.Fields["System.Title"].ToString();
+                var state = item.Fields["System.State"].ToString();
+                var startDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var endDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(7));
+
+                sb.AppendLine($"| {projectName} | {id} | {type} | {title} | {state} | {startDate} | {endDate} |");
+            }
+            
+            sb.AppendLine();
         }
     }
 }

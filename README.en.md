@@ -130,3 +130,6 @@ Work item status mapping rules:
 - Time display uses local timezone
 - Merged report mode combines all project work items into one report
 - Language set to auto will auto-detect system language
+- 
+- ## Sample Report
+![work_items_test](media/work_items_test.png)
