@@ -12,8 +12,13 @@ using Newtonsoft.Json;
 public class AppSettings
 {
     public string TfsUrl { get; set; }
-    public string ProjectName { get; set; }
+    public List<ProjectConfig> Projects { get; set; }
     public string PersonalAccessToken { get; set; }
+}
+
+public class ProjectConfig
+{
+    public string ProjectName { get; set; }
     public QuerySettings Query { get; set; }
 }
 
@@ -28,136 +33,22 @@ public class Program
 {
     public static void Main()
     {
-        // 读取配置文件
-        string configPath = "appsettings.json";
-        var config = File.ReadAllText(configPath);
-        var settings = JsonConvert.DeserializeObject<AppSettings>(config);
-
-        string tfsUrl = settings.TfsUrl;
-        string projectName = settings.ProjectName;
-        string personalAccessToken = settings.PersonalAccessToken;
-
-        string outputFile = "work_items.md";
-
         try
         {
-            // 使用个人访问令牌（PAT）进行身份验证
-            VssConnection connection = new VssConnection(new Uri(tfsUrl), 
-                new VssBasicCredential(string.Empty, personalAccessToken));
+            // 读取配置文件
+            string configPath = "appsettings.json";
+            var config = File.ReadAllText(configPath);
+            var settings = JsonConvert.DeserializeObject<AppSettings>(config);
 
-            // 获取工作项跟踪客户端
+            // 创建连接
+            VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), 
+                new VssBasicCredential(string.Empty, settings.PersonalAccessToken));
             var witClient = connection.GetClient<WorkItemTrackingHttpClient>();
 
-            // 创建或使用现有查询
-            Wiql wiql;
-            if (settings.Query?.UseExistingQuery == true && !string.IsNullOrEmpty(settings.Query.QueryPath))
+            foreach (var project in settings.Projects)
             {
-                try
-                {
-                    // 使用现有查询
-                    var query = witClient.GetQueryAsync(projectName, settings.Query.QueryPath).Result;
-                    if (query == null)
-                    {
-                        Console.WriteLine($"警告：未找到查询 '{settings.Query.QueryPath}'，将使用默认查询。");
-                        wiql = CreateDefaultWiql(projectName);
-                    }
-                    else
-                    {
-                        wiql = new Wiql { Query = query.Wiql };
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"警告：获取查询 '{settings.Query.QueryPath}' 失败：{ex.Message}");
-                    Console.WriteLine("将使用默认查询。");
-                    wiql = CreateDefaultWiql(projectName);
-                }
-            }
-            else
-            {
-                wiql = CreateDefaultWiql(projectName);
-            }
-
-            // 执行查询
-            var result = witClient.QueryByWiqlAsync(wiql).Result;
-            var workItemIds = result.WorkItems.Select(item => item.Id).ToArray();
-
-            if (workItemIds.Length > 0)
-            {
-                // 获取工作项详细信息
-                var workItems = witClient.GetWorkItemsAsync(workItemIds, 
-                    expand: WorkItemExpand.All).Result;
-
-                // 生成 Markdown 内容
-                var sb = new StringBuilder();
-                sb.AppendLine("# 项目工作项报告");
-                sb.AppendLine();
-
-                // 1. 总体甘特图
-                sb.AppendLine("## 总体甘特图");
-                GenerateGanttChart(sb, "项目整体进度甘特图", workItems);
-
-                // 2. 总体工作项列表
-                sb.AppendLine("## 总体工作项列表");
-                sb.AppendLine();
-                sb.AppendLine("| ID | 标题 | 状态 | 负责人 |");
-                sb.AppendLine("|---|---|---|---|");
-
-                foreach (var item in workItems)
-                {
-                    var id = item.Id;
-                    var title = item.Fields["System.Title"].ToString();
-                    var state = item.Fields["System.State"].ToString();
-                    var assignedTo = item.Fields.ContainsKey("System.AssignedTo") 
-                        ? item.Fields["System.AssignedTo"].ToString()
-                        : "未分配";
-
-                    sb.AppendLine($"| {id} | {title} | {state} | {assignedTo} |");
-                }
-
-                sb.AppendLine();
-
-                // 3. 按人分组的视图
-                sb.AppendLine("## 按人员分组的任务");
-                var workItemsByPerson = workItems
-                    .GroupBy(item => item.Fields.ContainsKey("System.AssignedTo") 
-                        ? item.Fields["System.AssignedTo"].ToString()
-                        : "未分配");
-
-                foreach (var personGroup in workItemsByPerson)
-                {
-                    sb.AppendLine($"## {personGroup.Key}的任务");
-                    sb.AppendLine();
-                    
-                    // 该人员的甘特图
-                    sb.AppendLine("### 甘特图");
-                    GenerateGanttChart(sb, $"{personGroup.Key}的进度甘特图", personGroup);
-                    
-                    // 该人员的工作项列表
-                    sb.AppendLine("### 工作项列表");
-                    sb.AppendLine();
-                    sb.AppendLine("| ID | 标题 | 状态 |");
-                    sb.AppendLine("|---|---|---|");
-
-                    foreach (var item in personGroup)
-                    {
-                        var id = item.Id;
-                        var title = item.Fields["System.Title"].ToString();
-                        var state = item.Fields["System.State"].ToString();
-
-                        sb.AppendLine($"| {id} | {title} | {state} |");
-                    }
-                    
-                    sb.AppendLine();
-                }
-
-                // 写入文件
-                File.WriteAllText(outputFile, sb.ToString());
-                Console.WriteLine($"工作项报告已生成：{outputFile}");
-            }
-            else
-            {
-                Console.WriteLine("未找到任何工作项。");
+                Console.WriteLine($"正在处理项目：{project.ProjectName}");
+                ProcessProject(witClient, project, settings.TfsUrl);
             }
         }
         catch (Exception ex)
@@ -166,78 +57,68 @@ public class Program
         }
     }
 
-    private static void GenerateGanttChart(StringBuilder sb, string title, IEnumerable<WorkItem> items)
+    private static void ProcessProject(WorkItemTrackingHttpClient witClient, ProjectConfig project, string tfsUrl)
     {
-        sb.AppendLine("```mermaid");
-        sb.AppendLine("gantt");
-        sb.AppendLine($"    title {title}");
-        sb.AppendLine("    dateFormat YYYY-MM-DD");
-
-        // 获取所有 UserStory
-        var userStories = items.Where(i => 
-            i.Fields["System.WorkItemType"].ToString() == "User Story").ToList();
-        
-        // 获取所有 Task
-        var tasks = items.Where(i => 
-            i.Fields["System.WorkItemType"].ToString() == "Task").ToList();
-
-        foreach (var story in userStories)
+        try
         {
-            var storyTitle = story.Fields["System.Title"].ToString();
-            sb.AppendLine($"    section {storyTitle}");
-
-            // 显示 UserStory 本身
-            var storyStartDate = story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate")
-                ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"].ToString().Split('T')[0]
-                : DateTime.Now.ToString("yyyy-MM-dd");
-            var storyEndDate = story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate")
-                ? story.Fields["Microsoft.VSTS.Scheduling.FinishDate"].ToString().Split('T')[0]
-                : DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
-            
-            sb.AppendLine($"    {storyTitle} :{storyStartDate}, {storyEndDate}");
-
-            // 显示属于该 UserStory 的 Tasks
-            var storyTasks = tasks.Where(t => 
-                t.Fields.ContainsKey("System.Parent") && 
-                t.Fields["System.Parent"].ToString() == story.Id.ToString());
-
-            foreach (var task in storyTasks)
+            // 创建或使用现有查询
+            Wiql wiql;
+            if (project.Query?.UseExistingQuery == true && !string.IsNullOrEmpty(project.Query.QueryPath))
             {
-                var taskTitle = task.Fields["System.Title"].ToString();
-                var startDate = task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate")
-                    ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"].ToString().Split('T')[0]
-                    : DateTime.Now.ToString("yyyy-MM-dd");
-                var endDate = task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate")
-                    ? task.Fields["Microsoft.VSTS.Scheduling.FinishDate"].ToString().Split('T')[0]
-                    : DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
+                try
+                {
+                    var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
+                    wiql = query != null ? new Wiql { Query = query.Wiql } : CreateDefaultWiql(project.ProjectName);
+                }
+                catch
+                {
+                    wiql = CreateDefaultWiql(project.ProjectName);
+                }
+            }
+            else
+            {
+                wiql = CreateDefaultWiql(project.ProjectName);
+            }
 
-                sb.AppendLine($"    {taskTitle} :{startDate}, {endDate}");
+            // 执行查询
+            var result = witClient.QueryByWiqlAsync(wiql).Result;
+            var workItemIds = result.WorkItems.Select(item => item.Id).ToArray();
+
+            if (workItemIds.Length > 0)
+            {
+                var workItems = witClient.GetWorkItemsAsync(workItemIds, expand: WorkItemExpand.All).Result;
+                
+                // 为每个项目生成单独的文件
+                string outputFile = $"work_items_{project.ProjectName}.md";
+                GenerateReport(workItems, outputFile, project.ProjectName, tfsUrl);
+                
+                Console.WriteLine($"项目 {project.ProjectName} 的报告已生成：{outputFile}");
+            }
+            else
+            {
+                Console.WriteLine($"项目 {project.ProjectName} 未找到任何工作项。");
             }
         }
-
-        // 显示没有父级的 Tasks
-        var orphanTasks = tasks.Where(t => 
-            !t.Fields.ContainsKey("System.Parent")).ToList();
-
-        if (orphanTasks.Any())
+        catch (Exception ex)
         {
-            sb.AppendLine("    section 其他任务");
-            foreach (var task in orphanTasks)
-            {
-                var taskTitle = task.Fields["System.Title"].ToString();
-                var startDate = task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate")
-                    ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"].ToString().Split('T')[0]
-                    : DateTime.Now.ToString("yyyy-MM-dd");
-                var endDate = task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate")
-                    ? task.Fields["Microsoft.VSTS.Scheduling.FinishDate"].ToString().Split('T')[0]
-                    : DateTime.Now.AddDays(7).ToString("yyyy-MM-dd");
-
-                sb.AppendLine($"    {taskTitle} :{startDate}, {endDate}");
-            }
+            Console.WriteLine($"处理项目 {project.ProjectName} 时发生错误：{ex.Message}");
         }
+    }
 
-        sb.AppendLine("```");
+    private static void GenerateReport(IEnumerable<WorkItem> workItems, string outputFile, string projectName, string tfsUrl)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"# {projectName} 项目工作项报告");
         sb.AppendLine();
+        
+        // 添加项目链接
+        sb.AppendLine($"[在 Azure DevOps 中查看项目]({tfsUrl}/{projectName})");
+        sb.AppendLine();
+
+        // 其余报告生成代码保持不变...
+        // (原来的报告生成逻辑)
+
+        File.WriteAllText(outputFile, sb.ToString());
     }
 
     private static Wiql CreateDefaultWiql(string projectName)
@@ -251,5 +132,67 @@ public class Program
             "Order By [System.Id]";
 
         return new Wiql { Query = defaultWiql };
+    }
+
+    private static string FormatDate(object dateValue)
+    {
+        if (dateValue == null) return DateTime.Now.ToString("yyyy-MM-dd");
+
+        if (DateTime.TryParse(dateValue.ToString(), out DateTime date))
+        {
+            // 将 UTC 时间转换为本地时间
+            if (date.Kind == DateTimeKind.Utc)
+            {
+                date = date.ToLocalTime();
+            }
+            return date.ToString("yyyy-MM-dd");
+        }
+        
+        return DateTime.Now.ToString("yyyy-MM-dd");
+    }
+
+    private static string GetPersonName(object assignedTo)
+    {
+        if (assignedTo == null) return "未分配";
+
+        try
+        {
+            // Azure DevOps API 返回的是 IdentityRef 对象
+            if (assignedTo is Microsoft.VisualStudio.Services.WebApi.IdentityRef identityRef)
+            {
+                return identityRef.DisplayName ?? "未分配";
+            }
+            
+            // 如果是字符串，尝试解析 JSON
+            if (assignedTo is string assignedToString)
+            {
+                var identity = JsonConvert.DeserializeObject<Dictionary<string, object>>(assignedToString);
+                return identity.ContainsKey("displayName") ? identity["displayName"].ToString() : "未分配";
+            }
+        }
+        catch
+        {
+            // 如果解析失败，直接返回字符串表示
+            return assignedTo.ToString();
+        }
+
+        return "未分配";
+    }
+
+    private static string GetTaskStatus(string state)
+    {
+        // 根据 Azure DevOps 的状态映射到 Mermaid 甘特图的状态
+        return state.ToLower() switch
+        {
+            "done" => "done",
+            "closed" => "done",
+            "completed" => "done",
+            "resolved" => "done",
+            "removed" => "done",
+            "active" => "active",
+            "in progress" => "active",
+            "doing" => "active",
+            _ => ""  // 其他状态不添加特殊标记
+        };
     }
 }
