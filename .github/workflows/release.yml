@@ -1,0 +1,43 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Build
+      run: |
+        dotnet restore
+        dotnet build -c Release
+      working-directory: Azure2Md
+        
+    - name: Publish
+      run: dotnet publish -c Release -o publish
+      working-directory: Azure2Md/Azure2Md
+      
+    - name: Zip Release
+      run: |
+        cd Azure2Md/Azure2Md/publish
+        zip -r ../../../Azure2Md-${{ github.ref_name }}.zip *
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: Azure2Md-${{ github.ref_name }}.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

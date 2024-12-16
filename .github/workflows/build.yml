@@ -1,0 +1,43 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: Azure2Md
+      
+    - name: Build
+      run: dotnet build --no-restore
+      working-directory: Azure2Md
+      
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      working-directory: Azure2Md
+      
+    - name: Publish
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: dotnet publish -c Release -o publish
+      working-directory: Azure2Md/Azure2Md
+
+    - name: Upload artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v3
+      with:
+        name: Azure2Md
+        path: Azure2Md/Azure2Md/publish/ 
