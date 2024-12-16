@@ -17,27 +17,47 @@ jobs:
       with:
         dotnet-version: 8.0.x
         
-    - name: Build
+    # 构建多个平台的版本
+    - name: Build All Platforms
       run: |
-        dotnet restore
-        dotnet build -c Release
-      working-directory: Azure2Md
-        
-    - name: Publish
-      run: dotnet publish -c Release -o publish
-      working-directory: Azure2Md/Azure2Md
+        # Windows x64
+        dotnet publish Azure2Md/Azure2Md/Azure2Md.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+        # Linux x64
+        dotnet publish Azure2Md/Azure2Md/Azure2Md.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o publish/linux-x64
+        # macOS x64
+        dotnet publish Azure2Md/Azure2Md/Azure2Md.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o publish/osx-x64
       
-    - name: Zip Release
+    # 打包各个平台的发布文件
+    - name: Create Platform Packages
       run: |
-        cd Azure2Md/Azure2Md/publish
-        zip -r ../../../Azure2Md-${{ github.ref_name }}.zip *
+        cd publish
+        zip -r ../Azure2Md-${{ github.ref_name }}-win-x64.zip win-x64/*
+        zip -r ../Azure2Md-${{ github.ref_name }}-linux-x64.zip linux-x64/*
+        zip -r ../Azure2Md-${{ github.ref_name }}-osx-x64.zip osx-x64/*
         
+    # 创建 Release
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: Azure2Md-${{ github.ref_name }}.zip
+        files: |
+          Azure2Md-${{ github.ref_name }}-win-x64.zip
+          Azure2Md-${{ github.ref_name }}-linux-x64.zip
+          Azure2Md-${{ github.ref_name }}-osx-x64.zip
         draft: false
         prerelease: false
         generate_release_notes: true
+        body: |
+          ## Azure2Md ${{ github.ref_name }}
+          
+          ### 下载
+          - Windows x64: [Azure2Md-${{ github.ref_name }}-win-x64.zip](Azure2Md-${{ github.ref_name }}-win-x64.zip)
+          - Linux x64: [Azure2Md-${{ github.ref_name }}-linux-x64.zip](Azure2Md-${{ github.ref_name }}-linux-x64.zip)
+          - macOS x64: [Azure2Md-${{ github.ref_name }}-osx-x64.zip](Azure2Md-${{ github.ref_name }}-osx-x64.zip)
+          
+          ### 使用方法
+          1. 下载对应平台的压缩包
+          2. 解压缩
+          3. 配置 appsettings.json
+          4. 运行程序
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
