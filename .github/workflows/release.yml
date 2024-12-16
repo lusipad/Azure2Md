@@ -52,9 +52,9 @@ jobs:
           ## Azure2Md ${{ github.ref_name }}
           
           ### 下载
-          - Windows x64: [Azure2Md-${{ github.ref_name }}-win-x64.zip](Azure2Md-${{ github.ref_name }}-win-x64.zip)
-          - Linux x64: [Azure2Md-${{ github.ref_name }}-linux-x64.zip](Azure2Md-${{ github.ref_name }}-linux-x64.zip)
-          - macOS x64: [Azure2Md-${{ github.ref_name }}-osx-x64.zip](Azure2Md-${{ github.ref_name }}-osx-x64.zip)
+          - Windows x64: [Azure2Md-${{ github.ref_name }}-win-x64.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Azure2Md-${{ github.ref_name }}-win-x64.zip)
+          - Linux x64: [Azure2Md-${{ github.ref_name }}-linux-x64.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Azure2Md-${{ github.ref_name }}-linux-x64.zip)
+          - macOS x64: [Azure2Md-${{ github.ref_name }}-osx-x64.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Azure2Md-${{ github.ref_name }}-osx-x64.zip)
           
           ### 使用方法
           1. 下载对应平台的压缩包

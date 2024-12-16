@@ -151,8 +151,26 @@ public class Program
         {
             // 读取配置文件
             string configPath = "appsettings.json";
+            if (!File.Exists(configPath))
+            {
+                Console.WriteLine("错误：找不到配置文件 appsettings.json");
+                Console.WriteLine("\n请创建配置文件 appsettings.json，内容示例：");
+                Console.WriteLine(GetConfigExample());
+                return;
+            }
+
             var config = File.ReadAllText(configPath);
-            settings = JsonConvert.DeserializeObject<AppSettings>(config);  // 赋值给静态字段
+            settings = JsonConvert.DeserializeObject<AppSettings>(config);
+
+            // 验证必要的配置项
+            var validationError = ValidateSettings(settings);
+            if (!string.IsNullOrEmpty(validationError))
+            {
+                Console.WriteLine($"错误：配置文件验证失败 - {validationError}");
+                Console.WriteLine("\n正确的配置文件示例：");
+                Console.WriteLine(GetConfigExample());
+                return;
+            }
 
             // 创建连接
             VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), 
@@ -411,8 +429,8 @@ public class Program
             // 个人工作项列表（使用五级标题）
             sb.AppendLine("##### 工作项列表");
             sb.AppendLine();
-            sb.AppendLine("| ID | 类型 | 标题 | 状态 |");
-            sb.AppendLine("|---|---|---|---|");
+            sb.AppendLine("| ID | 类型 | 标题 | 状态 | 开始日期 | 结束日期 |");
+            sb.AppendLine("|---|---|---|---|---|---|");
 
             foreach (var item in personGroup)
             {
@@ -420,8 +438,16 @@ public class Program
                 var type = item.Fields["System.WorkItemType"].ToString();
                 var title = item.Fields["System.Title"].ToString();
                 var state = item.Fields["System.State"].ToString();
+                var startDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var endDate = FormatDate(
+                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(7));
 
-                sb.AppendLine($"| {id} | {type} | {title} | {state} |");
+                sb.AppendLine($"| {id} | {type} | {title} | {state} | {startDate} | {endDate} |");
             }
             
             sb.AppendLine();
@@ -999,5 +1025,60 @@ public class Program
             
             sb.AppendLine();
         }
+    }
+
+    // 添加配置验证方法
+    private static string ValidateSettings(AppSettings settings)
+    {
+        if (settings == null)
+            return "无法解析配置文件";
+
+        if (string.IsNullOrWhiteSpace(settings.TfsUrl))
+            return "缺少 TfsUrl 配置";
+
+        if (string.IsNullOrWhiteSpace(settings.PersonalAccessToken))
+            return "缺少 PersonalAccessToken 配置";
+
+        if (settings.Projects == null || !settings.Projects.Any())
+            return "缺少 Projects 配置";
+
+        foreach (var project in settings.Projects)
+        {
+            if (string.IsNullOrWhiteSpace(project.ProjectName))
+                return "存在项目名称为空的配置";
+        }
+
+        return null;
+    }
+
+    // 添加配置示例生成方法
+    private static string GetConfigExample()
+    {
+        var example = new AppSettings
+        {
+            TfsUrl = "https://dev.azure.com/你的组织名",
+            PersonalAccessToken = "你的PAT令牌",
+            ReportSettings = new ReportSettings
+            {
+                MergeProjects = true,
+                MergedTitle = "多项目整合报告",
+                Language = "auto"
+            },
+            Projects = new List<ProjectConfig>
+            {
+                new ProjectConfig
+                {
+                    ProjectName = "项目名称",
+                    Query = new QuerySettings
+                    {
+                        UseExistingQuery = false,
+                        QueryPath = "Shared Queries/查询路径",
+                        CustomWiql = null
+                    }
+                }
+            }
+        };
+
+        return JsonConvert.SerializeObject(example, Formatting.Indented);
     }
 }
