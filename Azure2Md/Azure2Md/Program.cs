@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using System.Net;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
@@ -45,9 +46,10 @@ public class DisplayOptions
     public bool PrefixParentName { get; set; } = true;
 }
 
-// 修改类的访问修饰符，移除 private
+// 语言资源管理类
 public static class LanguageResources
 {
+    // 多语言资源字典
     private static readonly Dictionary<string, Dictionary<string, string>> Resources = new()
     {
         ["zh-CN"] = new()
@@ -117,9 +119,10 @@ public static class LanguageResources
     }
 }
 
-// 修改类的访问修饰符，移除 private
+// 语言辅助类
 public static class LanguageHelper
 {
+    // 获取当前使用的语言
     public static string GetCurrentLanguage(string configLanguage)
     {
         // 如果配置不是 auto，直接使用配置的语言
@@ -150,14 +153,14 @@ public static class LanguageHelper
 
 public class Program
 {
-    // 添加静态字段
+    // 全局配置对象
     private static AppSettings settings;
 
     public static void Main()
     {
         try
         {
-            // 读取配置文件
+            // 读取和验证配置
             string configPath = "appsettings.json";
             if (!File.Exists(configPath))
             {
@@ -180,9 +183,25 @@ public class Program
                 return;
             }
 
-            // 创建连接
-            VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), 
-                new VssBasicCredential(string.Empty, settings.PersonalAccessToken));
+            // HTTP 连接设置
+            var clientSettings = new VssClientHttpRequestSettings
+            {
+                MaxRetryRequest = 5
+            };
+
+            // 处理 HTTP 安全设置
+            if (settings.TfsUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                ServicePointManager.ServerCertificateValidationCallback = 
+                    (sender, certificate, chain, sslPolicyErrors) => true;
+            }
+
+            // 创建 Azure DevOps 连接
+            VssConnection connection = new VssConnection(
+                new Uri(settings.TfsUrl), 
+                new VssBasicCredential(string.Empty, settings.PersonalAccessToken),
+                clientSettings);
             var witClient = connection.GetClient<WorkItemTrackingHttpClient>();
 
             if (settings.ReportSettings?.MergeProjects == true)
@@ -304,7 +323,7 @@ public class Program
 
     private static void GenerateReport(IEnumerable<WorkItem> workItems, string projectName, string tfsUrl, StringBuilder sb)
     {
-        // 获取当前应该使用的语言
+        // 获取当前应使用的语言
         var currentLanguage = LanguageHelper.GetCurrentLanguage(settings.ReportSettings?.Language ?? "auto");
         var t = (string key) => LanguageResources.GetText(currentLanguage, key);
 
@@ -335,7 +354,7 @@ public class Program
         sb.AppendLine("#### User Story 层级视图");
         GenerateUserStoryGanttChart(sb, $"{projectName} User Story 进度", workItems);
 
-        // 3. 按工作项类型���组（使用三级标题）
+        // 3. 按工作项类型组（使用三级标题）
         sb.AppendLine("### 工作项分类");
         
         // 3.1 User Stories（使用四级标题）
@@ -345,7 +364,7 @@ public class Program
         {
             sb.AppendLine("#### User Stories");
             sb.AppendLine();
-            sb.AppendLine("| ID | 标题 | 状态 | 负责人 | 开始日期 | 结束日期 |");
+            sb.AppendLine("| ID | 标题 | 状态 | 负责人 | 开始日期 | ��束日期 |");
             sb.AppendLine("|---|---|---|---|---|---|");
             foreach (var story in userStories)
             {
@@ -1020,7 +1039,7 @@ public class Program
             }
             else
             {
-                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度甘特图", personItems);
+                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度���特图", personItems);
             }
 
             // 个人工作项列表
@@ -1060,6 +1079,9 @@ public class Program
         if (string.IsNullOrWhiteSpace(settings.TfsUrl))
             return "缺少 TfsUrl 配置";
 
+        // 规范化 URL
+        settings.TfsUrl = NormalizeUrl(settings.TfsUrl);
+
         if (string.IsNullOrWhiteSpace(settings.PersonalAccessToken))
             return "缺少 PersonalAccessToken 配置";
 
@@ -1073,6 +1095,25 @@ public class Program
         }
 
         return null;
+    }
+
+    // 添加 URL 规范化方法
+    private static string NormalizeUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return url;
+
+        // 移除末尾的斜杠
+        url = url.TrimEnd('/');
+
+        // 如果没有协议前缀，添加 https://
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            url = "https://" + url;
+        }
+
+        return url;
     }
 
     // 添加配置示例生成方法
