@@ -2,10 +2,12 @@
 
 [English](README.en.md) | 简体中文
 
-一个将 Azure DevOps 工作项导出为 Markdown 报告的工具。
+一个将 Azure DevOps/TFS 工作项导出为 Markdown 报告的工具。
 
 ## 功能特点
 
+- 支持 Azure DevOps 和 TFS 2022
+- 支持 HTTPS 和 HTTP 连接
 - 支持多个项目的工作项导出
 - 支持项目报告的合并或独立生成
 - 支持完整的工作项层级关系（Feature -> User Story -> Task）
@@ -25,7 +27,9 @@
 
 ```json
 {
-    "TfsUrl": "https://dev.azure.com/你的组织名",
+    "TfsUrl": "https://dev.azure.com/你的组织名",  // Azure DevOps URL
+    // 或者使用 TFS URL，例如：
+    // "TfsUrl": "http://tfs.your-company.com:8080/tfs/DefaultCollection",
     "PersonalAccessToken": "你的PAT令牌",
     "ReportSettings": {
         "MergeProjects": true,
@@ -52,7 +56,10 @@
 
 ### 配置项说明
 
-- `TfsUrl`: Azure DevOps 组织的 URL
+- `TfsUrl`: 
+  - Azure DevOps URL 格式：`https://dev.azure.com/你的组织名`
+  - TFS URL 格式：`http://tfs服务器:端口/tfs/集合名称`
+  - 支持 HTTP 和 HTTPS 协议
 - `PersonalAccessToken`: 个人访问令牌（PAT）
 - `ReportSettings`: 报告生成设置
   - `MergeProjects`: 是否合并多个项目的报告
@@ -71,6 +78,26 @@
     - `UseExistingQuery`: 是否使用现有查询
     - `QueryPath`: 现有查询的路径
     - `CustomWiql`: 自定义 WIQL 查询（可选）
+
+## 连接说明
+
+### Azure DevOps 连接
+- 使用 HTTPS 协议
+- URL 格式：`https://dev.azure.com/组织名称`
+- 需要有效的 PAT 令牌
+
+### TFS 2022 连接
+- 支持 HTTP 和 HTTPS 协议
+- URL 格式：`http(s)://服务器:端口/tfs/集合名称`
+- 如果使用 HTTP：
+  - 工具会自动处理证书验证
+  - 自动配置安全协议
+  - 支持自签名证书
+- 连接问题排查：
+  - 确保 URL 格式正确
+  - 确保服务器可访问
+  - 确保 PAT 令牌有效
+  - 检查网络代理设置
 
 ## 甘特图显示说明
 
@@ -117,7 +144,7 @@
 
 ### 独立报告模式
 
-每个项目生成独立的报告，包含：
+每个���目生成独立的报告，包含：
 
 1. 项目概览
    - 工作项总数

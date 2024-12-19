@@ -4,6 +4,8 @@ using System.Text;
 using System.Linq;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
@@ -170,7 +172,7 @@ public class Program
                 return;
             }
 
-            var config = File.ReadAllText(configPath);
+            var config = File.ReadAllText(configPath, Encoding.UTF8);
             settings = JsonConvert.DeserializeObject<AppSettings>(config);
 
             // 验证必要的配置项
@@ -183,25 +185,39 @@ public class Program
                 return;
             }
 
-            // HTTP 连接设置
+            // 配置 HTTP 和 TLS 设置
+            ConfigureHttpAndTlsSettings();
+
+            // 创建 HTTP 客户端设置
             var clientSettings = new VssClientHttpRequestSettings
             {
-                MaxRetryRequest = 5
+                MaxRetryRequest = 5,
+                SendTimeout = TimeSpan.FromMinutes(5)
             };
 
-            // 处理 HTTP 安全设置
-            if (settings.TfsUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            // 创建连接凭据
+            VssCredentials credentials = new VssBasicCredential(string.Empty, settings.PersonalAccessToken);
+
+            // 创建 Azure DevOps/TFS 连接
+            VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), credentials, clientSettings);
+            
+            // 测试连接
+            Console.WriteLine("正在测试连接...");
+            try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                ServicePointManager.ServerCertificateValidationCallback = 
-                    (sender, certificate, chain, sslPolicyErrors) => true;
+                connection.ConnectAsync().Wait();
+                Console.WriteLine("连接成功！");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"连接失败：{ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"详细错误：{ex.InnerException.Message}");
+                }
+                return;
             }
 
-            // 创建 Azure DevOps 连接
-            VssConnection connection = new VssConnection(
-                new Uri(settings.TfsUrl), 
-                new VssBasicCredential(string.Empty, settings.PersonalAccessToken),
-                clientSettings);
             var witClient = connection.GetClient<WorkItemTrackingHttpClient>();
 
             if (settings.ReportSettings?.MergeProjects == true)
@@ -233,7 +249,7 @@ public class Program
 
                 // 保存总报告
                 string outputFile = "work_items_report.md";
-                File.WriteAllText(outputFile, totalReport.ToString());
+                File.WriteAllText(outputFile, totalReport.ToString(), Encoding.UTF8);
                 Console.WriteLine($"总报告已生成：{outputFile}");
             }
             else
@@ -255,14 +271,53 @@ public class Program
 
                     // 保存项目报告
                     string outputFile = $"work_items_{project.ProjectName}.md";
-                    File.WriteAllText(outputFile, projectReport.ToString());
+                    File.WriteAllText(outputFile, projectReport.ToString(), Encoding.UTF8);
                     Console.WriteLine($"项目 {project.ProjectName} 的报告已生成：{outputFile}");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"发生错误：{ex.Message}");
+            Console.WriteLine($"处理错误：{ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"详细错误：{ex.InnerException.Message}");
+            }
+        }
+    }
+
+    private static void ConfigureHttpAndTlsSettings()
+    {
+        try
+        {
+            // 配置 TLS 设置
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+
+            // 配置证书验证
+            if (settings.TfsUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("检测到 HTTP 连接，配置安全设置...");
+                
+                // 禁用证书验证
+                ServicePointManager.ServerCertificateValidationCallback = delegate (
+                    object sender,
+                    X509Certificate certificate,
+                    X509Chain chain,
+                    SslPolicyErrors sslPolicyErrors)
+                {
+                    return true; // 允许所有证书
+                };
+            }
+
+            // 配置 HTTP 设置
+            ServicePointManager.DefaultConnectionLimit = 100;
+            ServicePointManager.MaxServicePointIdleTime = 10000;
+            ServicePointManager.CheckCertificateRevocationList = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"配置 HTTP/TLS 设置时发生错误：{ex.Message}");
+            throw;
         }
     }
 
@@ -364,7 +419,7 @@ public class Program
         {
             sb.AppendLine("#### User Stories");
             sb.AppendLine();
-            sb.AppendLine("| ID | 标题 | 状态 | 负责人 | 开始日期 | ��束日期 |");
+            sb.AppendLine("| ID | 标题 | 状态 | 负责人 | 开始日期 | 结束日期 |");
             sb.AppendLine("|---|---|---|---|---|---|");
             foreach (var story in userStories)
             {
@@ -454,7 +509,7 @@ public class Program
             }
             
             // 个人工作项列表（使用五级标题）
-            sb.AppendLine("##### 工作项列表");
+            sb.AppendLine("#### 工作项列表");
             sb.AppendLine();
             sb.AppendLine("| ID | 类型 | 标题 | 状态 | 开始日期 | 结束日期 |");
             sb.AppendLine("|---|---|---|---|---|---|");
@@ -536,7 +591,7 @@ public class Program
         }
         catch
         {
-            // 如果解析失败，直接返回字符串表示
+            // 如果解析失败，直接返回字符串示
             return assignedTo.ToString();
         }
 
@@ -872,7 +927,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"获取项目 {project.ProjectName} 的工作项时发生错误：{ex.Message}");
+            Console.WriteLine($"获取项目 {project.ProjectName} 的工作项发生错误：{ex.Message}");
         }
 
         return null;
@@ -1039,7 +1094,7 @@ public class Program
             }
             else
             {
-                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度���特图", personItems);
+                GenerateUserStoryGanttChart(sb, $"{personGroup.Key}的进度特图", personItems);
             }
 
             // 个人工作项列表
