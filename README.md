@@ -20,6 +20,7 @@
 - 支持任务状态的可视化（进行中/已完成）
 - 支持多语言（中文/英文/自动检测）
 - 支持自定义甘特图显示选项
+- 支持自定义时间字段映射
 
 ## 配置说明
 
@@ -30,7 +31,7 @@
     "TfsUrl": "https://dev.azure.com/你的组织名",  // Azure DevOps URL
     // 或者使用 TFS URL，例如：
     // "TfsUrl": "http://tfs.your-company.com:8080/tfs/DefaultCollection",
-    "PersonalAccessToken": "你的PAT令牌",
+    "PersonalAccessToken": "你的 PAT 令牌",
     "ReportSettings": {
         "MergeProjects": true,
         "MergedTitle": "多项目整合报告",
@@ -48,6 +49,20 @@
                 "UseExistingQuery": false,
                 "QueryPath": "Shared Queries/查询路径",
                 "CustomWiql": null
+            },
+            "FieldMappings": {
+                "Feature": {
+                    "StartDateField": "Custom.FeatureStartDate",
+                    "EndDateField": "Custom.FeatureEndDate"
+                },
+                "UserStory": {
+                    "StartDateField": "Custom.StoryStartDate",
+                    "EndDateField": "Custom.StoryEndDate"
+                },
+                "Task": {
+                    "StartDateField": "Custom.TaskStartDate",
+                    "EndDateField": "Custom.TaskEndDate"
+                }
             }
         }
     ]
@@ -57,7 +72,7 @@
 ### 配置项说明
 
 - `TfsUrl`: 
-  - Azure DevOps URL 格式：`https://dev.azure.com/你的组织名`
+  - Azure DevOps URL 格式��`https://dev.azure.com/你的组织名`
   - TFS URL 格式：`http://tfs服务器:端口/tfs/集合名称`
   - 支持 HTTP 和 HTTPS 协议
 - `PersonalAccessToken`: 个人访问令牌（PAT）
@@ -78,6 +93,28 @@
     - `UseExistingQuery`: 是否使用现有查询
     - `QueryPath`: 现有查询的路径
     - `CustomWiql`: 自定义 WIQL 查询（可选）
+  - `FieldMappings`: 时间字段映射配置
+    - `Feature`: Feature 类型工作项的字段映射
+      - `StartDateField`: 开始时间字段名
+      - `EndDateField`: 结束时间字段名
+    - `UserStory`: User Story 类型工作项的字段映射
+      - `StartDateField`: 开始时间字段名
+      - `EndDateField`: 结束时间字段名
+    - `Task`: Task 类型工作项的字段映射
+      - `StartDateField`: 开始时间字段名
+      - `EndDateField`: 结束时间字段名
+
+### 时间字段映射说明
+
+- 如果不配置 FieldMappings 或字段为空，将使用默认字段：
+  - 开始时间：`Microsoft.VSTS.Scheduling.StartDate`
+  - 结束时间：`Microsoft.VSTS.Scheduling.FinishDate`
+- 不同工作项类型可以使用不同的时间字段
+- 自定义字段需要使用完整的字段引用名（例如：`Custom.FieldName`）
+- 如果字段不存在或为空，将使用默认值：
+  - Feature 类型默认工期：30 天
+  - User Story 类型默认工期：14 天
+  - Task 类型默认工期：7 天
 
 ## 连接说明
 
@@ -115,7 +152,7 @@
 3. 节点类型标识
    - Feature 节点显示为：`名称 (Feature)`
    - User Story 节点显示为：`名称 (Story)`
-   - Task 节点不添加类型标识
+   - Task 节点不添加类型标记
 
 ## 生成的报告内容
 
@@ -144,7 +181,7 @@
 
 ### 独立报告模式
 
-每个���目生成独立的报告，包含：
+每个项目生成独立的报告，包含：
 
 1. 项目概览
    - 工作项总数

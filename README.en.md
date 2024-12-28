@@ -20,6 +20,7 @@ A tool to export Azure DevOps/TFS work items to Markdown reports.
 - Support for task status visualization (active/done)
 - Support for multiple languages (Chinese/English/auto-detect)
 - Support for custom Gantt chart display options
+- Support for custom time field mappings
 
 ## Configuration
 
@@ -48,6 +49,20 @@ Configure in `appsettings.json`:
                 "UseExistingQuery": false,
                 "QueryPath": "Shared Queries/query-path",
                 "CustomWiql": null
+            },
+            "FieldMappings": {
+                "Feature": {
+                    "StartDateField": "Custom.FeatureStartDate",
+                    "EndDateField": "Custom.FeatureEndDate"
+                },
+                "UserStory": {
+                    "StartDateField": "Custom.StoryStartDate",
+                    "EndDateField": "Custom.StoryEndDate"
+                },
+                "Task": {
+                    "StartDateField": "Custom.TaskStartDate",
+                    "EndDateField": "Custom.TaskEndDate"
+                }
             }
         }
     ]
@@ -78,6 +93,28 @@ Configure in `appsettings.json`:
     - `UseExistingQuery`: Whether to use existing query
     - `QueryPath`: Path to existing query
     - `CustomWiql`: Custom WIQL query (optional)
+  - `FieldMappings`: Time field mapping configuration
+    - `Feature`: Feature work item type field mapping
+      - `StartDateField`: Start date field name
+      - `EndDateField`: End date field name
+    - `UserStory`: User Story work item type field mapping
+      - `StartDateField`: Start date field name
+      - `EndDateField`: End date field name
+    - `Task`: Task work item type field mapping
+      - `StartDateField`: Start date field name
+      - `EndDateField`: End date field name
+
+### Time Field Mapping
+
+- If FieldMappings is not configured or fields are empty, default fields will be used:
+  - Start date: `Microsoft.VSTS.Scheduling.StartDate`
+  - End date: `Microsoft.VSTS.Scheduling.FinishDate`
+- Different work item types can use different time fields
+- Custom fields must use complete field reference names (e.g., `Custom.FieldName`)
+- If a field doesn't exist or is empty, default durations will be used:
+  - Feature type default duration: 30 days
+  - User Story type default duration: 14 days
+  - Task type default duration: 7 days
 
 ## Connection Guide
 
