@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Newtonsoft.Json;
+using Microsoft.VisualStudio.Services.OAuth;
 
 public class AppSettings
 {
@@ -56,7 +57,7 @@ public static class LanguageResources
     {
         ["zh-CN"] = new()
         {
-            ["Title"] = "工作项报告",
+            ["ReportTitle"] = "工作项报告",
             ["GeneratedTime"] = "生成时间",
             ["Overview"] = "总体概览",
             ["TotalItems"] = "工作项总数",
@@ -80,11 +81,12 @@ public static class LanguageResources
             ["StartDate"] = "开始日期",
             ["EndDate"] = "结束日期",
             ["ParentStory"] = "所属 Story",
-            ["Type"] = "类型"
+            ["Type"] = "类型",
+            ["ItemTitle"] = "标题"
         },
         ["en-US"] = new()
         {
-            ["Title"] = "Work Items Report",
+            ["ReportTitle"] = "Work Items Report",
             ["GeneratedTime"] = "Generated Time",
             ["Overview"] = "Overview",
             ["TotalItems"] = "Total Items",
@@ -108,7 +110,8 @@ public static class LanguageResources
             ["StartDate"] = "Start Date",
             ["EndDate"] = "End Date",
             ["ParentStory"] = "Parent Story",
-            ["Type"] = "Type"
+            ["Type"] = "Type",
+            ["ItemTitle"] = "Title"
         }
     };
 
@@ -196,7 +199,7 @@ public class Program
             };
 
             // 创建连接凭据
-            VssCredentials credentials = new VssBasicCredential(string.Empty, settings.PersonalAccessToken);
+            var credentials = new VssOAuthAccessTokenCredential(settings.PersonalAccessToken);
 
             // 创建 Azure DevOps/TFS 连接
             VssConnection connection = new VssConnection(new Uri(settings.TfsUrl), credentials, clientSettings);
@@ -405,7 +408,7 @@ public class Program
         sb.AppendLine("#### Feature 层级视图");
         GenerateFeatureGanttChart(sb, $"{projectName} Feature 进度", workItems);
 
-        // 2.2 User Story + Task 视图
+        // 2.2 User Story + Task 视��
         sb.AppendLine("#### User Story 层级视图");
         GenerateUserStoryGanttChart(sb, $"{projectName} User Story 进度", workItems);
 
@@ -1177,7 +1180,7 @@ public class Program
         var example = new AppSettings
         {
             TfsUrl = "https://dev.azure.com/你的组织名",
-            PersonalAccessToken = "你的PAT令牌",
+            PersonalAccessToken = "你的 PAT 令牌",
             ReportSettings = new ReportSettings
             {
                 MergeProjects = true,
