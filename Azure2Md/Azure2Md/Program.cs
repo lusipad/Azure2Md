@@ -25,6 +25,7 @@ public class ProjectConfig
 {
     public string ProjectName { get; set; }
     public QuerySettings Query { get; set; }
+    public WorkItemFieldMappings FieldMappings { get; set; } = new WorkItemFieldMappings();
 }
 
 public class QuerySettings
@@ -47,6 +48,31 @@ public class DisplayOptions
     public bool ShowFeatureInGantt { get; set; } = true;
     public bool ShowUserStoryInGantt { get; set; } = true;
     public bool PrefixParentName { get; set; } = true;
+}
+
+public class WorkItemFieldMappings
+{
+    public WorkItemTypeFields Feature { get; set; } = new WorkItemTypeFields 
+    {
+        StartDateField = "Microsoft.VSTS.Scheduling.StartDate",
+        EndDateField = "Microsoft.VSTS.Scheduling.FinishDate"
+    };
+    public WorkItemTypeFields UserStory { get; set; } = new WorkItemTypeFields
+    {
+        StartDateField = "Microsoft.VSTS.Scheduling.StartDate",
+        EndDateField = "Microsoft.VSTS.Scheduling.FinishDate"
+    };
+    public WorkItemTypeFields Task { get; set; } = new WorkItemTypeFields
+    {
+        StartDateField = "Microsoft.VSTS.Scheduling.StartDate",
+        EndDateField = "Microsoft.VSTS.Scheduling.FinishDate"
+    };
+}
+
+public class WorkItemTypeFields
+{
+    public string StartDateField { get; set; }
+    public string EndDateField { get; set; }
 }
 
 // 语言资源管理类
@@ -191,7 +217,7 @@ public class Program
             // 配置 HTTP 和 TLS 设置
             ConfigureHttpAndTlsSettings();
 
-            // 创建 HTTP 客户端设置
+            // 创建 HTTP 客户端设���
             var clientSettings = new VssClientHttpRequestSettings
             {
                 MaxRetryRequest = 5,
@@ -284,7 +310,7 @@ public class Program
             Console.WriteLine($"处理错误：{ex.Message}");
             if (ex.InnerException != null)
             {
-                Console.WriteLine($"详细错误：{ex.InnerException.Message}");
+                Console.WriteLine($"详细错���：{ex.InnerException.Message}");
             }
         }
     }
@@ -408,7 +434,7 @@ public class Program
         sb.AppendLine("#### Feature 层级视图");
         GenerateFeatureGanttChart(sb, $"{projectName} Feature 进度", workItems);
 
-        // 2.2 User Story + Task 视��
+        // 2.2 User Story + Task 视图
         sb.AppendLine("#### User Story 层级视图");
         GenerateUserStoryGanttChart(sb, $"{projectName} User Story 进度", workItems);
 
@@ -433,14 +459,8 @@ public class Program
                     story.Fields.ContainsKey("System.AssignedTo") 
                         ? story.Fields["System.AssignedTo"] 
                         : null);
-                var startDate = FormatDate(
-                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
-                        ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
-                        : null);
-                var endDate = FormatDate(
-                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
-                        ? story.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
-                        : DateTime.Now.AddDays(7));
+                var startDate = GetStartDate(story, settings.Projects.First(p => p.ProjectName == projectName));
+                var endDate = GetEndDate(story, settings.Projects.First(p => p.ProjectName == projectName));
 
                 sb.AppendLine($"| {id} | {title} | {state} | {assignedTo} | {startDate} | {endDate} |");
             }
@@ -465,14 +485,8 @@ public class Program
                     task.Fields.ContainsKey("System.AssignedTo") 
                         ? task.Fields["System.AssignedTo"] 
                         : null);
-                var startDate = FormatDate(
-                    task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
-                        ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
-                        : null);
-                var endDate = FormatDate(
-                    task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
-                        ? task.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
-                        : DateTime.Now.AddDays(7));
+                var startDate = GetStartDate(task, settings.Projects.First(p => p.ProjectName == projectName));
+                var endDate = GetEndDate(task, settings.Projects.First(p => p.ProjectName == projectName));
                 var parentId = task.Fields.ContainsKey("System.Parent") 
                     ? task.Fields["System.Parent"].ToString() 
                     : "-";
@@ -523,14 +537,8 @@ public class Program
                 var type = item.Fields["System.WorkItemType"].ToString();
                 var title = item.Fields["System.Title"].ToString();
                 var state = item.Fields["System.State"].ToString();
-                var startDate = FormatDate(
-                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
-                        ? item.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
-                        : null);
-                var endDate = FormatDate(
-                    item.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
-                        ? item.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
-                        : DateTime.Now.AddDays(7));
+                var startDate = GetStartDate(item, settings.Projects.First(p => p.ProjectName == projectName));
+                var endDate = GetEndDate(item, settings.Projects.First(p => p.ProjectName == projectName));
 
                 sb.AppendLine($"| {id} | {type} | {title} | {state} | {startDate} | {endDate} |");
             }
@@ -938,7 +946,7 @@ public class Program
 
     private static void GenerateMergedReport(List<(WorkItem Item, string ProjectName)> allWorkItems, string tfsUrl, StringBuilder sb)
     {
-        // 获取当前应该使用的语言
+        // 获取当前应��使用的语言
         var currentLanguage = LanguageHelper.GetCurrentLanguage(settings.ReportSettings?.Language ?? "auto");
         var t = (string key) => LanguageResources.GetText(currentLanguage, key);
 
@@ -961,7 +969,7 @@ public class Program
             sb.AppendLine();
         }
 
-        // 3. 总体甘特图
+        // 3. 总体���特图
         sb.AppendLine("## 总体甘特图");
         
         // 3.1 Feature 视图
@@ -1197,11 +1205,75 @@ public class Program
                         UseExistingQuery = false,
                         QueryPath = "Shared Queries/查询路径",
                         CustomWiql = null
+                    },
+                    FieldMappings = new WorkItemFieldMappings
+                    {
+                        Feature = new WorkItemTypeFields
+                        {
+                            StartDateField = "Custom.FeatureStartDate",
+                            EndDateField = "Custom.FeatureEndDate"
+                        },
+                        UserStory = new WorkItemTypeFields
+                        {
+                            StartDateField = "Custom.StoryStartDate",
+                            EndDateField = "Custom.StoryEndDate"
+                        },
+                        Task = new WorkItemTypeFields
+                        {
+                            StartDateField = "Custom.TaskStartDate",
+                            EndDateField = "Custom.TaskEndDate"
+                        }
                     }
                 }
             }
         };
 
         return JsonConvert.SerializeObject(example, Formatting.Indented);
+    }
+
+    private static string GetStartDate(WorkItem workItem, ProjectConfig projectConfig)
+    {
+        var workItemType = workItem.Fields["System.WorkItemType"].ToString();
+        var fieldMapping = workItemType switch
+        {
+            "Feature" => projectConfig.FieldMappings.Feature,
+            "User Story" => projectConfig.FieldMappings.UserStory,
+            "Task" => projectConfig.FieldMappings.Task,
+            _ => null
+        };
+
+        if (fieldMapping == null || string.IsNullOrEmpty(fieldMapping.StartDateField))
+            return FormatDate(null);
+
+        return FormatDate(
+            workItem.Fields.ContainsKey(fieldMapping.StartDateField)
+                ? workItem.Fields[fieldMapping.StartDateField]
+                : null);
+    }
+
+    private static string GetEndDate(WorkItem workItem, ProjectConfig projectConfig)
+    {
+        var workItemType = workItem.Fields["System.WorkItemType"].ToString();
+        var fieldMapping = workItemType switch
+        {
+            "Feature" => projectConfig.FieldMappings.Feature,
+            "User Story" => projectConfig.FieldMappings.UserStory,
+            "Task" => projectConfig.FieldMappings.Task,
+            _ => null
+        };
+
+        if (fieldMapping == null || string.IsNullOrEmpty(fieldMapping.EndDateField))
+            return FormatDate(DateTime.Now.AddDays(workItemType switch
+            {
+                "Feature" => 30,
+                "User Story" => 14,
+                "Task" => 7,
+                _ => 7
+            }));
+
+        return FormatDate(
+            workItem.Fields.ContainsKey(fieldMapping.EndDateField)
+                ? workItem.Fields[fieldMapping.EndDateField]
+                : null);
     }
 }
