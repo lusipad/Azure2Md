@@ -1,23 +1,25 @@
 # Azure2Md
 
-[简体中文](README.md) | English
+[English](README.en.md) | [简体中文](README.md)
 
-A tool to export Azure DevOps work items to Markdown reports.
+A tool to export Azure DevOps/TFS work items to Markdown reports.
 
 ## Features
 
-- Support multiple project work item export
-- Support merged or independent project reports
-- Support complete work item hierarchy (Feature -> User Story -> Task)
+- Support for Azure DevOps and TFS 2022
+- Support for both HTTPS and HTTP connections
+- Support for multiple project work item export
+- Support for merged or individual project reports
+- Support for complete work item hierarchy (Feature -> User Story -> Task)
 - Generate multi-level Gantt chart views
   - Feature + User Story view
   - User Story + Task view
-- Group tasks by team member
-- Support custom queries or existing queries
-- Display complete time information for work items
-- Support task status visualization (active/done)
-- Support multiple languages (Chinese/English/Auto-detect)
-- Support customizable Gantt chart display options
+- Group tasks by team members
+- Support for custom queries or existing queries
+- Display complete work item time information
+- Support for task status visualization (active/done)
+- Support for multiple languages (Chinese/English/auto-detect)
+- Support for custom Gantt chart display options
 
 ## Configuration
 
@@ -25,16 +27,18 @@ Configure in `appsettings.json`:
 
 ```json
 {
-    "TfsUrl": "https://dev.azure.com/your-org",
+    "TfsUrl": "https://dev.azure.com/your-organization",  // Azure DevOps URL
+    // Or use TFS URL, for example:
+    // "TfsUrl": "http://tfs.your-company.com:8080/tfs/DefaultCollection",
     "PersonalAccessToken": "your-pat-token",
     "ReportSettings": {
         "MergeProjects": true,
         "MergedTitle": "Multi-Project Report",
         "Language": "auto",  // Options: auto, zh-CN, en-US
         "DisplayOptions": {
-            "ShowFeatureInGantt": true,  // Show Feature nodes in Gantt chart
-            "ShowUserStoryInGantt": true,  // Show User Story nodes in Gantt chart
-            "PrefixParentName": true  // Add parent name prefix to child items
+            "ShowFeatureInGantt": true,  // Whether to show Feature in Gantt chart
+            "ShowUserStoryInGantt": true,  // Whether to show User Story in Gantt chart
+            "PrefixParentName": true  // Whether to show parent name before child item
         }
     },
     "Projects": [
@@ -52,43 +56,66 @@ Configure in `appsettings.json`:
 
 ### Configuration Items
 
-- `TfsUrl`: Azure DevOps organization URL
+- `TfsUrl`: 
+  - Azure DevOps URL format: `https://dev.azure.com/your-organization`
+  - TFS URL format: `http://tfs-server:port/tfs/collection-name`
+  - Supports both HTTP and HTTPS protocols
 - `PersonalAccessToken`: Personal Access Token (PAT)
 - `ReportSettings`: Report generation settings
   - `MergeProjects`: Whether to merge multiple project reports
   - `MergedTitle`: Title for merged report
-  - `Language`: Language setting
+  - `Language`: Language settings
     - `auto`: Auto-detect system language
     - `zh-CN`: Force Chinese
     - `en-US`: Force English
   - `DisplayOptions`: Display options
     - `ShowFeatureInGantt`: Whether to show Feature nodes in Gantt chart
     - `ShowUserStoryInGantt`: Whether to show User Story nodes in Gantt chart
-    - `PrefixParentName`: Whether to add parent name prefix to child items
+    - `PrefixParentName`: Whether to add parent name before child items
 - `Projects`: Project configuration list
   - `ProjectName`: Project name
   - `Query`: Query configuration
     - `UseExistingQuery`: Whether to use existing query
-    - `QueryPath`: Existing query path
+    - `QueryPath`: Path to existing query
     - `CustomWiql`: Custom WIQL query (optional)
 
-## Gantt Chart Display Guide
+## Connection Guide
+
+### Azure DevOps Connection
+- Uses HTTPS protocol
+- URL format: `https://dev.azure.com/organization-name`
+- Requires valid PAT token
+
+### TFS 2022 Connection
+- Supports both HTTP and HTTPS protocols
+- URL format: `http(s)://server:port/tfs/collection-name`
+- For HTTP connections:
+  - Tool automatically handles certificate validation
+  - Auto-configures security protocols
+  - Supports self-signed certificates
+- Connection troubleshooting:
+  - Verify URL format is correct
+  - Ensure server is accessible
+  - Verify PAT token is valid
+  - Check network proxy settings
+
+## Gantt Chart Display
 
 1. Parent-Child Display
-   - When `ShowFeatureInGantt` is true, Feature nodes are shown
-   - When `ShowUserStoryInGantt` is true, User Story nodes are shown
-   - Child items are always displayed
+   - When `ShowFeatureInGantt` is true, shows Feature nodes
+   - When `ShowUserStoryInGantt` is true, shows User Story nodes
+   - Child items are always shown
 
 2. Name Display
    - When `PrefixParentName` is true:
      - User Story shows as: `Feature Name - User Story Name`
      - Task shows as: `User Story Name - Task Name`
-   - When `PrefixParentName` is false, only shows item's own name
+   - When `PrefixParentName` is false, shows only item's own name
 
-3. Node Type Indicators
+3. Node Type Identification
    - Feature nodes show as: `Name (Feature)`
    - User Story nodes show as: `Name (Story)`
-   - Task nodes have no type indicator
+   - Task nodes show without type identifier
 
 ## Generated Report Content
 
@@ -96,7 +123,7 @@ Configure in `appsettings.json`:
 
 1. Overall Overview
    - Work item statistics for all projects
-   - Completed and active item counts
+   - Count of completed and active items
 
 2. Project Statistics
    - Work item statistics by project
@@ -106,18 +133,18 @@ Configure in `appsettings.json`:
    - Feature level view
    - User Story level view
 
-4. Work Item Classification
+4. Work Item Categories
    - Features list (with start and end dates)
-   - User Stories list (with start date, end date, and parent Feature)
-   - Tasks list (with start date, end date, and parent Story)
+   - User Stories list (with start/end dates and parent Feature)
+   - Tasks list (with start/end dates and parent Story)
 
 5. Team Member Task Assignment
    - Gantt chart for each member
    - Personal work item list (with start and end dates)
 
-### Independent Report Mode
+### Individual Report Mode
 
-Each project generates an independent report containing:
+Each project generates a separate report containing:
 
 1. Project Overview
    - Total work items
@@ -128,9 +155,9 @@ Each project generates an independent report containing:
    - Feature level view
    - User Story level view
 
-3. Work Item Classification
+3. Work Item Categories
    - User Stories (with start and end dates)
-   - Tasks (with start date, end date, and parent Story)
+   - Tasks (with start/end dates and parent Story)
 
 4. Team Member Task Assignment
    - Personal Gantt chart
@@ -139,7 +166,7 @@ Each project generates an independent report containing:
 ## Status Mapping
 
 Work item status mapping rules:
-- Completed status (done): done, closed, completed, resolved, removed
+- Done status (done): done, closed, completed, resolved, removed
 - Active status (active): active, in progress, doing
 - Other status: shown as normal tasks
 
@@ -152,12 +179,12 @@ Work item status mapping rules:
 
 ## Notes
 
-- Requires valid Azure DevOps PAT token
-- PAT needs work item read permission
+- Requires valid Azure DevOps/TFS PAT token
+- PAT needs work item read permissions
 - Supported work item types: Feature, User Story, and Task
 - Time display uses local timezone
 - Merged report mode combines all project work items into one report
-- Language set to auto will auto-detect system language
-- 
-- ## Sample Report
+- Auto language setting detects system language
+
+## Sample Report
 ![work_items_test](media/work_items_test.png)
