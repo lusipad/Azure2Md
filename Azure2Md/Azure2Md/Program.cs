@@ -217,7 +217,7 @@ public class Program
             // 配置 HTTP 和 TLS 设置
             ConfigureHttpAndTlsSettings();
 
-            // 创建 HTTP 客户端设���
+            // 创建 HTTP 客户端设置
             var clientSettings = new VssClientHttpRequestSettings
             {
                 MaxRetryRequest = 5,
@@ -310,7 +310,7 @@ public class Program
             Console.WriteLine($"处理错误：{ex.Message}");
             if (ex.InnerException != null)
             {
-                Console.WriteLine($"详细错���：{ex.InnerException.Message}");
+                Console.WriteLine($"详细错误：{ex.InnerException.Message}");
             }
         }
     }
@@ -711,8 +711,44 @@ public class Program
             sb.AppendLine("    section 其他 User Stories");
             foreach (var story in orphanStories)
             {
-                // 显示 User Story 和其关联的 Tasks...
-                // (与之前的 User Story 处理逻辑相同)
+                var storyTitle = story.Fields["System.Title"].ToString();
+                var storyStartDate = FormatDate(
+                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                        ? story.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                        : null);
+                var storyEndDate = FormatDate(
+                    story.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                        ? story.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                        : DateTime.Now.AddDays(14));
+                var storyStatus = GetTaskStatus(story.Fields["System.State"].ToString());
+                
+                sb.AppendLine($"    {storyTitle} :{storyStatus}, {storyStartDate}, {storyEndDate}");
+
+                // 显示属于该 User Story 的 Tasks
+                var storyTasks = tasks.Where(t => 
+                    t.Fields.ContainsKey("System.Parent") && 
+                    t.Fields["System.Parent"].ToString() == story.Id.ToString());
+
+                foreach (var task in storyTasks)
+                {
+                    var taskTitle = task.Fields["System.Title"].ToString();
+                    if (settings.ReportSettings?.DisplayOptions?.PrefixParentName ?? true)
+                    {
+                        taskTitle = $"{storyTitle} - {taskTitle}";
+                    }
+
+                    var startDate = FormatDate(
+                        task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                            ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                            : null);
+                    var endDate = FormatDate(
+                        task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                            ? task.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                            : DateTime.Now.AddDays(7));
+                    var taskStatus = GetTaskStatus(task.Fields["System.State"].ToString());
+
+                    sb.AppendLine($"    {taskTitle} :{taskStatus}, {startDate}, {endDate}");
+                }
             }
         }
 
@@ -755,6 +791,8 @@ public class Program
             i.Fields["System.WorkItemType"].ToString() == "Feature").ToList();
         var userStories = items.Where(i => 
             i.Fields["System.WorkItemType"].ToString() == "User Story").ToList();
+        var tasks = items.Where(i => 
+            i.Fields["System.WorkItemType"].ToString() == "Task").ToList();
 
         foreach (var feature in features)
         {
@@ -825,6 +863,32 @@ public class Program
                 var storyStatus = GetTaskStatus(story.Fields["System.State"].ToString());
                 
                 sb.AppendLine($"    {storyTitle} :{storyStatus}, {storyStartDate}, {storyEndDate}");
+
+                // 显示属于该 User Story 的 Tasks
+                var storyTasks = tasks.Where(t => 
+                    t.Fields.ContainsKey("System.Parent") && 
+                    t.Fields["System.Parent"].ToString() == story.Id.ToString());
+
+                foreach (var task in storyTasks)
+                {
+                    var taskTitle = task.Fields["System.Title"].ToString();
+                    if (settings.ReportSettings?.DisplayOptions?.PrefixParentName ?? true)
+                    {
+                        taskTitle = $"{storyTitle} - {taskTitle}";
+                    }
+
+                    var startDate = FormatDate(
+                        task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.StartDate") 
+                            ? task.Fields["Microsoft.VSTS.Scheduling.StartDate"] 
+                            : null);
+                    var endDate = FormatDate(
+                        task.Fields.ContainsKey("Microsoft.VSTS.Scheduling.FinishDate") 
+                            ? task.Fields["Microsoft.VSTS.Scheduling.FinishDate"] 
+                            : DateTime.Now.AddDays(7));
+                    var taskStatus = GetTaskStatus(task.Fields["System.State"].ToString());
+
+                    sb.AppendLine($"    {taskTitle} :{taskStatus}, {startDate}, {endDate}");
+                }
             }
         }
 
@@ -946,7 +1010,7 @@ public class Program
 
     private static void GenerateMergedReport(List<(WorkItem Item, string ProjectName)> allWorkItems, string tfsUrl, StringBuilder sb)
     {
-        // 获取当前应��使用的语言
+        // 获取当前应使用的语言
         var currentLanguage = LanguageHelper.GetCurrentLanguage(settings.ReportSettings?.Language ?? "auto");
         var t = (string key) => LanguageResources.GetText(currentLanguage, key);
 
@@ -969,7 +1033,7 @@ public class Program
             sb.AppendLine();
         }
 
-        // 3. 总体���特图
+        // 3. 总体甘特图
         sb.AppendLine("## 总体甘特图");
         
         // 3.1 Feature 视图
