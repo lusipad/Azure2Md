@@ -356,25 +356,25 @@ public class Program
         {
             // 创建或使用现有查询
             Wiql wiql;
+            WorkItemQueryResult result;
+
             if (project.Query?.UseExistingQuery == true && !string.IsNullOrEmpty(project.Query.QueryPath))
             {
-                try
-                {
-                    var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
-                    wiql = query != null ? new Wiql { Query = query.Wiql } : CreateDefaultWiql(project.ProjectName);
-                }
-                catch
-                {
-                    wiql = CreateDefaultWiql(project.ProjectName);
-                }
+                var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
+                result = witClient.QueryByIdAsync(query.Id).Result;
+            }
+
+            if (project.Query?.UseExistingQuery == true && !string.IsNullOrEmpty(project.Query.QueryPath))
+            {
+                var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
+                result = witClient.QueryByIdAsync(query.Id).Result;
             }
             else
             {
                 wiql = CreateDefaultWiql(project.ProjectName);
+                result = witClient.QueryByWiqlAsync(wiql).Result;
             }
 
-            // 执行查询
-            var result = witClient.QueryByWiqlAsync(wiql).Result;
             var workItemIds = result.WorkItems.Select(item => item.Id).ToArray();
 
             if (workItemIds.Length > 0)
