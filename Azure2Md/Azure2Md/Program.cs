@@ -363,12 +363,6 @@ public class Program
                 var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
                 result = witClient.QueryByIdAsync(query.Id).Result;
             }
-
-            if (project.Query?.UseExistingQuery == true && !string.IsNullOrEmpty(project.Query.QueryPath))
-            {
-                var query = witClient.GetQueryAsync(project.ProjectName, project.Query.QueryPath).Result;
-                result = witClient.QueryByIdAsync(query.Id).Result;
-            }
             else
             {
                 wiql = CreateDefaultWiql(project.ProjectName);
